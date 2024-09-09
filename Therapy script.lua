@@ -58,16 +58,12 @@ local Items = {
 	})
 }
 
-local ItemsBlacklist = {
-	"Curtain",
-	"Pose",
-	"TV",
-	"WeatherTv",
-	"Chemistry Textbook",
-	"Radio",
-	"Opey",
-	"Mouse Hole",
-	"Warm"
+local ItemsWhitelist = {
+    "Sandwich",
+    "Cheese",
+    "Closet key",
+    "Flower",
+    "Explodsive ball"
 }
 
 local Positions = {
@@ -81,34 +77,33 @@ local Positions = {
 }
 
 local Overwrites = { --// Name, Properities
-	["Part"] = {
-		NewName = "Explodsive ball",
-		Properities = {
-			Color = Color3.fromRGB(0, 255, 0)
-		}
+	["Explodsive ball"] = {
+		Color = Color3.fromRGB(0, 255, 0)
 	},
-	["CheeseUntextured"] = {
-		NewName = "Cheese"
+	["Cheese"] = {
+		Name = "CheeseUntextured"
 	},
-	["Handle"] = {
-		NewName = "Closet key",
-		Properities = {
-			Color = Color3.fromRGB(245, 205, 48)
-		}
+	["Closet key"] = {
+		Color = Color3.fromRGB(245, 205, 48)
 	},
-	["Model"] = {
-		NewName = "Sandwich",
-		Properities = {
-			Parent = workspace:FindFirstChild("Picnic Basket")
-		}
-	}
+	["Sandwich"] = {
+		Parent = workspace:FindFirstChild("Picnic Basket")
+	},
+    ["Broom stick"] = {
+		[{
+            Child = "Mesh",
+        }] = {
+            MeshId = "http://www.roblox.com/asset/?id=99865889"
+        }
+	},
 }
 
 local Spams = {
 	["WeatherTv"] = "Weather Tv",
 	["Radio"] = "Radio mute",
+    ["AtticRadio"] = "Attic radio mute",
 	["Curtain"] = "Curtains",
-	["Warm"] = "Crouch"
+	["Warm"] = "Crouch",
 }
 
 local function GetExtentsSize(Item)
@@ -151,6 +146,33 @@ local function CreateButtons(Item: Instance, Parent)
 	})
 end
 
+local function CheckProps(Item, Properities)
+    for Key, Match in next, Properities do
+
+        --// Child check
+        if type(Key) == "table" then
+            local Name = Key.Child
+            local Child = Item:FindFirstChild(Name)
+            Properities = Match
+
+            if not Child or not CheckProps(Child, Properities) then
+                return
+            end
+
+            continue
+        end
+
+        local Success, Value = pcall(function()
+            return Item[Key]
+        end)
+
+        if not Success then return end
+        if Value ~= Match then return end
+    end
+
+    return true
+end
+
 local function CheckItem(Item, Parent, Depth)
 	local ClickDetector = Item:FindFirstChildOfClass("ClickDetector")
 	if not ClickDetector then return end
@@ -159,35 +181,21 @@ local function CheckItem(Item, Parent, Depth)
 	if Players:FindFirstChild(Item.Name) then return end
 	if Players:FindFirstChild(Parent.Name) then return end
 
-	table.insert(DiscoveredItems, Item)
+	--// Check properities
+    for NewName, Properities in next, Overwrites do 
+        if not CheckProps(Item, Properities) then
+            continue
+        end
 
-	--// Trash remover
+        print("Discovered", NewName)
+        Item.Name = NewName
+    end
+
+    table.insert(DiscoveredItems, Item)
+
+    --// Trash remover
 	if Depth and Depth >= 3 then return end
 	if #Item.Name <= 2 then return end
-
-	--// Check properities
-	local Overwrite = Overwrites[Item.Name]
-	if Overwrite then
-		local Properities = Overwrite.Properities
-		--local Match = true
-
-		if Properities then
-			for Key, Match in next, Properities do
-				local Value = Item[Key]
-				if Value ~= Match then 
-					return
-				end
-			end
-		end
-
-		--// Pass - Apply new properities
-		--if Match then
-		Item.Name = Overwrite.NewName
-		--end
-	end
-
-	--// Blacklist check
-	if table.find(ItemsBlacklist, Item.Name) then return end
 
 	local Matched = false
 	for Match, Parent in next, Items do
@@ -196,6 +204,9 @@ local function CheckItem(Item, Parent, Depth)
 			Matched = true
 		end
 	end
+
+    --// --Blacklist-- Whitelist check
+	if not table.find(ItemsWhitelist, Item.Name) then return end
 
 	if not Matched then
 		CreateButtons(Item, ItemsHeader)
