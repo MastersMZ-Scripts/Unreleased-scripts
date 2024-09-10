@@ -20,44 +20,27 @@ local Window = ImGui:CreateWindow({
 	CloseCallback = CloseCallback
 }):Center()
 
-local ItemsTab = Window:CreateTab({
-	Name = "Server",
-	Visible = true
-})
+local function Alert(Text: string)
+    local ModalWindow = ImGui:CreateModal({
+        Title = "Attention",
+        AutoSize = "Y"
+    })
 
---// Viewport frame
-local PreviewHeader = ItemsTab:CollapsingHeader({
-	Title = "Preview",
-}):SetOpen(true)
-local Viewport = PreviewHeader:Viewport({
-	Size = UDim2.new(1, 0, 0, 120),
-	Clone = true, --// Otherwise will parent
-})
-local WorldModel: WorldModel = Viewport.WorldModel
+    ModalWindow:Label({
+        Text = Text,
+        TextWrapped = true
+    })
+    ModalWindow:Separator()
 
-local ViewportConnection = RunService.RenderStepped:Connect(function(deltaTime)
-	local ItemModel: Instance = Viewport.Model
-	if not ItemModel then return end
+    ModalWindow:Button({
+        Text = "Okay",
+        Callback = function()
+            ModalWindow:Close()
+        end,
+    })
+end
 
-	local YRotation = 30 * deltaTime
-	local cFrame = ItemModel:GetPivot() * CFrame.Angles(0,math.rad(YRotation),0)
-	ItemModel:PivotTo(cFrame)
-end)
-
-ItemsTab:Separator()
-
-local ItemsHeader = ItemsTab:CollapsingHeader({
-	Title = "Items give",
-})
-
---// Specific matches
 local DiscoveredItems = {}
-local Items = {
-	["^CD%d$"] = ItemsHeader:CollapsingHeader({
-		Title = "CDs",
-	})
-}
-
 local ItemsWhitelist = {
     "Sandwich",
     "Cheese",
@@ -80,20 +63,29 @@ local Overwrites = { --// Name, Properities
 	["Explodsive ball"] = {
 		Color = Color3.fromRGB(0, 255, 0)
 	},
-	["Cheese"] = {
-		Name = "CheeseUntextured"
-	},
 	["Closet key"] = {
 		Color = Color3.fromRGB(245, 205, 48)
 	},
 	["Sandwich"] = {
-		Parent = workspace:FindFirstChild("Picnic Basket")
+        Parent = workspace:FindFirstChild("Picnic Basket"),
+		[{
+            Child = "Mesh",
+        }] = {
+            MeshId = "http://www.roblox.com/asset/?id=12510164"
+        }
 	},
     ["Broom stick"] = {
 		[{
             Child = "Mesh",
         }] = {
             MeshId = "http://www.roblox.com/asset/?id=99865889"
+        }
+	},
+    ["Cheese"] = {
+		[{
+            Child = "Mesh",
+        }] = {
+            MeshId = "http://www.roblox.com/asset/?id=1090700"
         }
 	},
 }
@@ -104,6 +96,44 @@ local Spams = {
     ["AtticRadio"] = "Attic radio mute",
 	["Curtain"] = "Curtains",
 	["Warm"] = "Crouch",
+}
+
+local ServerTab = Window:CreateTab({
+	Name = "Server",
+	Visible = true
+})
+
+--// Viewport frame
+local PreviewHeader = ServerTab:CollapsingHeader({
+	Title = "Preview",
+}):SetOpen(true)
+
+local Viewport = PreviewHeader:Viewport({
+	Size = UDim2.new(1, 0, 0, 120),
+	Clone = true, --// Otherwise will parent
+})
+
+local ViewportConnection = RunService.RenderStepped:Connect(function(deltaTime)
+	local ItemModel: Instance = Viewport.Model
+	if not ItemModel then return end
+
+	local YRotation = 30 * deltaTime
+	local Rotation = CFrame.Angles(0,math.rad(YRotation),0)
+	local cFrame = ItemModel:GetPivot() * Rotation
+	ItemModel:PivotTo(cFrame)
+end)
+
+ServerTab:Separator()
+
+local ItemsHeader = ServerTab:CollapsingHeader({
+	Title = "Items give",
+})
+
+--// Specific matches
+local Items = {
+	["^CD%d$"] = ItemsHeader:CollapsingHeader({
+		Title = "CDs",
+	})
 }
 
 local function GetExtentsSize(Item)
@@ -117,25 +147,35 @@ local function GetExtentsSize(Item)
 	return Vector3.new(0, Size.Y, Size.Z)
 end
 
-local function GetItemFromName(Name: string)
-	Name = tostring(Name)
-	for _, Item in next, DiscoveredItems do
-		if Item.Name == Name then 
-			return Item 
+local function GetItem(Match: string)
+	for _, Item in next, DiscoveredItems do 
+		local Name = Item.Name 
+		if Name == Match then
+			return Item
 		end
 	end
+
+	return
 end
 
-local function CreateButtons(Item: Instance, Parent)
+local function FireItemClick(Item: Instance)
 	local ClickDetector = Item:FindFirstChildOfClass("ClickDetector")
 	if not ClickDetector then return end
+
+	return fireclickdetector(ClickDetector)
+end
+
+local function CreateButtons(Item: Instance, Parent, Callback)
+	if not Item then return end 
+
+    Callback = Callback or function()
+		return FireItemClick(Item)
+	end
 
 	local ButtonsRow = Parent:Row()
 	ButtonsRow:Button({
 		Text = `Collect {Item.Name}`,
-		Callback = function(self)
-			fireclickdetector(ClickDetector)
-		end,
+		Callback = Callback,
 	})
 	ButtonsRow:Button({
 		Text = "Preview",
@@ -177,9 +217,12 @@ local function CheckItem(Item, Parent, Depth)
 	local ClickDetector = Item:FindFirstChildOfClass("ClickDetector")
 	if not ClickDetector then return end
 
+	--// Filter hidden/disabled
+	if Item:IsA("BasePart") and Item.Transparency >= 1 then return end
+
 	--// No players
-	if Players:FindFirstChild(Item.Name) then return end
-	if Players:FindFirstChild(Parent.Name) then return end
+	if Players:GetPlayerFromCharacter(Item) then return end
+	if Players:GetPlayerFromCharacter(Parent) then return end
 
 	--// Check properities
     for NewName, Properities in next, Overwrites do 
@@ -191,12 +234,9 @@ local function CheckItem(Item, Parent, Depth)
         Item.Name = NewName
     end
 
-    table.insert(DiscoveredItems, Item)
+	table.insert(DiscoveredItems, Item)
 
-    --// Trash remover
-	if Depth and Depth >= 3 then return end
-	if #Item.Name <= 2 then return end
-
+	--// Create buttons
 	local Matched = false
 	for Match, Parent in next, Items do
 		if Item.Name:match(Match) then
@@ -223,9 +263,69 @@ local function RecursiveScan(Parent, CallBack, MaxDepth, CurrentDepth)
 	end
 end
 
+--// Items give section, create buttons
 RecursiveScan(workspace, CheckItem, 4)
 
-local Toggles = ItemsTab:CollapsingHeader({
+local Broom = GetItem("Broom stick")
+CreateButtons(Broom, ItemsHeader, function()
+	--// Name of tools
+	local KeyName = "Key"
+	local BroomName = "Broom"
+
+	local Backpack = LocalPlayer.Backpack
+	local Character = LocalPlayer.Character
+	local Humanoid = Character.Humanoid
+	local OldPivot = Character:GetPivot()
+
+	local ClosetDoor = workspace.Door
+
+	--// Closed
+	local ClosedDoor = ClosetDoor.Door1
+	local MainDoor = ClosedDoor.Main
+	local OpenPrompt = MainDoor:FindFirstChildOfClass("ProximityPrompt")
+
+	--// Open
+	local OpenDoor = ClosetDoor.Door1Open
+	local RandomOpenPart = OpenDoor:GetChildren()[1]
+
+	--// Get key
+	local KeyTool = Backpack:FindFirstChild(KeyName)
+
+    if Backpack:FindFirstChild(BroomName) then
+        return Alert("You already own the broom 😱")
+    end
+
+	if not KeyTool then
+		local Key = GetItem("Closet key")
+		FireItemClick(Key)
+
+		KeyTool = Backpack:WaitForChild(KeyName)
+	end
+
+	Humanoid:EquipTool(KeyTool)
+
+	--// Open door
+	local DoorPivot = MainDoor:GetPivot()
+	Character:PivotTo(DoorPivot)
+
+	repeat 
+		fireproximityprompt(OpenPrompt)
+		wait(.05)
+	until RandomOpenPart.Transparency < 1
+
+	--// Collect broom stick
+	local BroomPivot = Broom:GetPivot()
+	Character:PivotTo(BroomPivot)
+
+	repeat
+		FireItemClick(Broom)
+		wait()
+	until Backpack:FindFirstChild(BroomName)
+
+	Character:PivotTo(OldPivot)
+end)
+
+local Toggles = ServerTab:CollapsingHeader({
 	Title = "Toggles",
 })
 
@@ -253,11 +353,11 @@ end
 
 for Spam, Title in next, Spams do
 	AddSpam(Title, .01, function()
-		for _, Part in next, DiscoveredItems do
-			if not Part.Name:find(Spam) then continue end
+		for _, Item in next, DiscoveredItems do
+			local Name = Item.Name
+			if Name ~= Spam then continue end
 
-			local ClickDetector = Part:FindFirstChildOfClass("ClickDetector")
-			fireclickdetector(ClickDetector)
+			FireItemClick(Item)
 		end
 	end)
 end
@@ -266,9 +366,8 @@ AddSpam("Open Basement", 0.3, function()
 	local Code = "9714"
 
 	for i = 1,#Code do --// gsub is not yeildable
-		local Button = GetItemFromName(Code:sub(i,i))
-		local ClickDetector = Button:FindFirstChildOfClass("ClickDetector")
-		fireclickdetector(ClickDetector)
+		local Button = GetItem(Code:sub(i,i))
+		FireItemClick(Button)
 		wait()
 	end
 end)
@@ -278,9 +377,8 @@ AddSpam("Spam Basement Codes", 0.4, function()
 
 	for i = 1, Length do
 		local Digit = math.random(1, 9)
-		local Button = GetItemFromName(Digit)
-		local ClickDetector = Button:FindFirstChildOfClass("ClickDetector")
-		fireclickdetector(ClickDetector)
+		local Button = GetItem(Digit)
+		FireItemClick(Button)
 	end
 end)
 
@@ -288,7 +386,7 @@ function CloseCallback()
 	ViewportConnection:Disconnect()
 end
 
-local Destruction = ItemsTab:CollapsingHeader({
+local Destruction = ServerTab:CollapsingHeader({
 	Title = "Destruction",
 })
 
@@ -349,12 +447,12 @@ local Teleports = ClientTab:CollapsingHeader({
 	Title = "Teleports",
 })
 
-for Name, Cframe in next, Positions do
+for Name, Pivot in next, Positions do
 	Teleports:Button({
 		Text = Name,
 		Callback = function(self)
 			local Character = LocalPlayer.Character
-			Character:PivotTo(Cframe)
+			Character:PivotTo(Pivot)
 		end,
 	})
 end
@@ -417,7 +515,7 @@ ClientTab:Slider({
 	Label = "Walkspeed",
 	Value = 16,
 	MinValue = 1,
-	MaxValue = 50,
+	MaxValue = 100,
 
 	Callback = function(self, Value)
 		local Character = LocalPlayer.Character
