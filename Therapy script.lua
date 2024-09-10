@@ -70,9 +70,13 @@ local Overwrites = { --// Name, Properities
 	["Sandwich"] = {
         Parent = workspace:FindFirstChild("Picnic Basket"),
 		[{
-            Child = "Mesh",
+            Child = "Sandwich",
         }] = {
-            MeshId = "http://www.roblox.com/asset/?id=12510164"
+			[{
+				Child = "Mesh",
+			}] = {
+            	MeshId = "http://www.roblox.com/asset/?id=12510164"
+			}
         }
 	},
     ["Broom stick"] = {
@@ -192,7 +196,7 @@ local function CheckProps(Item, Properities)
     for Key, Match in next, Properities do
 
         --// Child check
-        if type(Key) == "table" then
+        if typeof(Key) == "table" then
             local Name = Key.Child
             local Child = Item:FindFirstChild(Name)
             Properities = Match
@@ -220,7 +224,9 @@ local function CheckItem(Item, Parent, Depth)
 	if not ClickDetector then return end
 
 	--// Filter hidden/disabled
-	if Item:IsA("BasePart") and Item.Transparency >= 1 then return end
+	if Item:IsA("BasePart") and Item.Transparency >= 1 then 
+		return 
+	end
 
 	--// No players
 	if Players:GetPlayerFromCharacter(Item) then return end
@@ -348,13 +354,11 @@ CreateButtons({
 
 		local Prompt = LadderGet:FindFirstChildOfClass("ProximityPrompt")
 
-		local LadderPivot = LadderGet:GetPivot()
+		local LadderPivot = LadderGet:GetPivot() * CFrame.new(0,0,2)
 		Character:PivotTo(LadderPivot)
 
-		repeat 
-			fireproximityprompt(Prompt)
-			wait(.05)
-		until Prompt.ActionText:find("Return")
+		wait(.5)
+		fireproximityprompt(Prompt)
 
 		Character:PivotTo(OldPivot)
 	end
