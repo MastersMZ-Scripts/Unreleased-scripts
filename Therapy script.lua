@@ -50,13 +50,14 @@ local ItemsWhitelist = {
 }
 
 local Positions = {
-	["Painting"] = CFrame.new(-397, 2, -11),
-	["Lobby"] = CFrame.new(-277, 3, 0),
-	["Office"] = CFrame.new(-484, 3, 11),
-	["Basement"] = CFrame.new(-523, -17, -35),
-	["Picnic"] = CFrame.new(-615, 3, 6),
-	["Roof front"] = CFrame.new(-265, 29, 0),
-	["Hallway end"] = CFrame.new(-486, 3, -1)
+	["Painting"] = CFrame.new(-397, 3, -11),
+	["Lobby"] = CFrame.new(-277, 4, 0),
+	["Office"] = CFrame.new(-484, 4, 11),
+	["Basement"] = CFrame.new(-523, -16, -35),
+	["Picnic"] = CFrame.new(-615, 4, 6),
+	["Roof front"] = CFrame.new(-265, 30, 0),
+	["Hallway end"] = CFrame.new(-486, 4, -1),
+	["Attic"] = CFrame.new(-367, -28, -260)
 }
 
 local Overwrites = { --// Name, Properities
@@ -165,16 +166,17 @@ local function FireItemClick(Item: Instance)
 	return fireclickdetector(ClickDetector)
 end
 
-local function CreateButtons(Item: Instance, Parent, Callback)
-	if not Item then return end 
-
-    Callback = Callback or function()
+local function CreateButtons(Config)
+	local Item = Config.Item
+	local Parent = Config.Parent
+	local Name = Config.Name or Item.Name
+    local Callback = Config.Callback or function()
 		return FireItemClick(Item)
 	end
 
 	local ButtonsRow = Parent:Row()
 	ButtonsRow:Button({
-		Text = `Collect {Item.Name}`,
+		Text = `Collect {Name}`,
 		Callback = Callback,
 	})
 	ButtonsRow:Button({
@@ -240,7 +242,10 @@ local function CheckItem(Item, Parent, Depth)
 	local Matched = false
 	for Match, Parent in next, Items do
 		if Item.Name:match(Match) then
-			CreateButtons(Item, Parent)
+			CreateButtons({
+				Item = Item, 
+				Parent = Parent,
+			})
 			Matched = true
 		end
 	end
@@ -249,7 +254,10 @@ local function CheckItem(Item, Parent, Depth)
 	if not table.find(ItemsWhitelist, Item.Name) then return end
 
 	if not Matched then
-		CreateButtons(Item, ItemsHeader)
+		CreateButtons({
+			Item = Item, 
+			Parent = ItemsHeader,
+		})
 	end
 end
 
@@ -267,63 +275,90 @@ end
 RecursiveScan(workspace, CheckItem, 4)
 
 local Broom = GetItem("Broom stick")
-CreateButtons(Broom, ItemsHeader, function()
-	--// Name of tools
-	local KeyName = "Key"
-	local BroomName = "Broom"
-
-	local Backpack = LocalPlayer.Backpack
-	local Character = LocalPlayer.Character
-	local Humanoid = Character.Humanoid
-	local OldPivot = Character:GetPivot()
-
-	local ClosetDoor = workspace.Door
-
-	--// Closed
-	local ClosedDoor = ClosetDoor.Door1
-	local MainDoor = ClosedDoor.Main
-	local OpenPrompt = MainDoor:FindFirstChildOfClass("ProximityPrompt")
-
-	--// Open
-	local OpenDoor = ClosetDoor.Door1Open
-	local RandomOpenPart = OpenDoor:GetChildren()[1]
-
-	--// Get key
-	local KeyTool = Backpack:FindFirstChild(KeyName)
-
-    if Backpack:FindFirstChild(BroomName) then
-        return Alert("You already own the broom 😱")
-    end
-
-	if not KeyTool then
-		local Key = GetItem("Closet key")
-		FireItemClick(Key)
-
-		KeyTool = Backpack:WaitForChild(KeyName)
+CreateButtons({
+	Item = Broom, 
+	Parent = ItemsHeader,
+	Callback = function()
+		--// Name of tools
+		local KeyName = "Key"
+		local BroomName = "Broom"
+	
+		local Backpack = LocalPlayer.Backpack
+		local Character = LocalPlayer.Character
+		local Humanoid = Character.Humanoid
+		local OldPivot = Character:GetPivot()
+	
+		local ClosetDoor = workspace.Door
+	
+		--// Closed
+		local ClosedDoor = ClosetDoor.Door1
+		local MainDoor = ClosedDoor.Main
+		local OpenPrompt = MainDoor:FindFirstChildOfClass("ProximityPrompt")
+	
+		--// Open
+		local OpenDoor = ClosetDoor.Door1Open
+		local RandomOpenPart = OpenDoor:GetChildren()[1]
+	
+		--// Get key
+		local KeyTool = Backpack:FindFirstChild(KeyName)
+	
+		if Backpack:FindFirstChild(BroomName) then
+			return Alert("You already own the broom 😱")
+		end
+	
+		if not KeyTool then
+			local Key = GetItem("Closet key")
+			FireItemClick(Key)
+	
+			KeyTool = Backpack:WaitForChild(KeyName)
+		end
+	
+		Humanoid:EquipTool(KeyTool)
+	
+		--// Open door
+		local DoorPivot = MainDoor:GetPivot()
+		Character:PivotTo(DoorPivot)
+	
+		repeat 
+			fireproximityprompt(OpenPrompt)
+			wait(.05)
+		until RandomOpenPart.Transparency < 1
+	
+		--// Collect broom stick
+		local BroomPivot = Broom:GetPivot()
+		Character:PivotTo(BroomPivot)
+	
+		repeat
+			FireItemClick(Broom)
+			wait()
+		until Backpack:FindFirstChild(BroomName)
+	
+		Character:PivotTo(OldPivot)
 	end
+})
 
-	Humanoid:EquipTool(KeyTool)
+local LadderGet = workspace.LadderGet
+CreateButtons({
+	Item = LadderGet, 
+	Parent = ItemsHeader,
+	Name = "Ladder",
+	Callback = function()
+		local Character = LocalPlayer.Character
+		local OldPivot = Character:GetPivot()
 
-	--// Open door
-	local DoorPivot = MainDoor:GetPivot()
-	Character:PivotTo(DoorPivot)
+		local Prompt = LadderGet:FindFirstChildOfClass("ProximityPrompt")
 
-	repeat 
-		fireproximityprompt(OpenPrompt)
-		wait(.05)
-	until RandomOpenPart.Transparency < 1
+		local LadderPivot = LadderGet:GetPivot()
+		Character:PivotTo(LadderPivot)
 
-	--// Collect broom stick
-	local BroomPivot = Broom:GetPivot()
-	Character:PivotTo(BroomPivot)
+		repeat 
+			fireproximityprompt(Prompt)
+			wait(.05)
+		until Prompt.ActionText:find("Return")
 
-	repeat
-		FireItemClick(Broom)
-		wait()
-	until Backpack:FindFirstChild(BroomName)
-
-	Character:PivotTo(OldPivot)
-end)
+		Character:PivotTo(OldPivot)
+	end
+})
 
 local Toggles = ServerTab:CollapsingHeader({
 	Title = "Toggles",
