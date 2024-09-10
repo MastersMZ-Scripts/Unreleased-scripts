@@ -131,7 +131,7 @@ end)
 ServerTab:Separator()
 
 local ItemsHeader = ServerTab:CollapsingHeader({
-	Title = "Items give",
+	Title = "Tools 🧹",
 })
 
 --// Specific matches
@@ -365,7 +365,7 @@ CreateButtons({
 })
 
 local Toggles = ServerTab:CollapsingHeader({
-	Title = "Toggles",
+	Title = "Toggles 🛠️",
 })
 
 local function AddSpam(Title, Delay, Callback)
@@ -426,7 +426,7 @@ function CloseCallback()
 end
 
 local Destruction = ServerTab:CollapsingHeader({
-	Title = "Destruction",
+	Title = "Destruction 💥",
 })
 
 Destruction:Button({
@@ -483,7 +483,7 @@ local ClientTab = Window:CreateTab({
 
 --// Teleports
 local Teleports = ClientTab:CollapsingHeader({
-	Title = "Teleports",
+	Title = "Teleports 🛸",
 })
 
 for Name, Pivot in next, Positions do
@@ -515,7 +515,7 @@ ClientTab:Checkbox({
 
 --// Weather
 ClientTab:Separator({
-	Text = "Weather"
+	Text = "Weather 🌧️"
 })
 
 ClientTab:Checkbox({
