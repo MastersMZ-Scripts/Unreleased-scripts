@@ -46,7 +46,8 @@ local ItemsWhitelist = {
     "Cheese",
     "Closet key",
     "Flower",
-    "Explodsive ball"
+    "Explodsive ball",
+	"Drink"
 }
 
 local Positions = {
@@ -91,6 +92,13 @@ local Overwrites = { --// Name, Properities
             Child = "Mesh",
         }] = {
             MeshId = "http://www.roblox.com/asset/?id=1090700"
+        }
+	},
+	["Drink"] = {
+		[{
+            Child = "Mesh",
+        }] = {
+            MeshId = "http://www.roblox.com/asset/?id=21382712"
         }
 	},
 }
