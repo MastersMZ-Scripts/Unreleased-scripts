@@ -161,6 +161,8 @@ local function GetExtentsSize(Item)
 end
 
 local function GetItem(Match: string)
+	local Match = tostring(Match)
+
 	for _, Item in next, DiscoveredItems do 
 		local Name = Item.Name 
 		if Name == Match then
@@ -176,6 +178,18 @@ local function FireItemClick(Item: Instance)
 	if not ClickDetector then return end
 
 	return fireclickdetector(ClickDetector)
+end
+
+local function FireTouchPart(Part: BasePart)
+	local TouchTransmitter = Part:FindFirstChildOfClass("TouchTransmitter")
+	if not TouchTransmitter then return end
+
+	local Character = LocalPlayer.Character
+	local Root = Character.HumanoidRootPart
+
+	firetouchinterest(Root, Part, 0)
+	wait()
+    firetouchinterest(Root, Part, 1)
 end
 
 local function CreateButtons(Config)
@@ -409,6 +423,24 @@ for Spam, Title in next, Spams do
 	end)
 end
 
+AddSpam("Open Painting", 1, function()
+	local Openy = workspace.Opey
+	FireItemClick(Openy)
+end)
+
+AddSpam("Open Room Doors", 0.5, function()
+	for _, Room: Model in next, Rooms:GetChildren() do
+		local Door = Room:FindFirstChild("Door")
+		local DoorClosed = Door.Door1
+		local Main = DoorClosed.Main 
+
+		local IsLocked = Door.Locked.Value 
+
+		if IsLocked then continue end
+		FireTouchPart(Main)
+	end
+end)
+
 AddSpam("Open Basement", 0.3, function()
 	local Code = "9714"
 
@@ -533,7 +565,7 @@ ClientTab:Checkbox({
 
 		local RainFolder: model = workspace:FindFirstChild("Rain Home")
 		if Value then
-			RainFolder:Remove()
+			RainFolder:ClearAllChildren()
 		end
 	end,
 })
