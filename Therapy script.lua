@@ -101,6 +101,21 @@ local Overwrites = { --// Name, Properities
             MeshId = "http://www.roblox.com/asset/?id=21382712"
         }
 	},
+	["OfficeTV"] = {
+		[{
+            Child = "Sound",
+        }] = {
+            SoundId = "rbxassetid://12221976"
+        }
+	},
+	["OfficePC"] = {
+		[{
+            Child = "BlueScreen",
+        }] = {}
+	},
+	["Cup"] = {
+		Name = "Cup"
+	},
 }
 
 local Spams = {
@@ -109,6 +124,11 @@ local Spams = {
     ["AtticRadio"] = "Attic radio mute",
 	["Curtain"] = "Curtains",
 	["Warm"] = "Crouch",
+	["OfficeTV"] = "Office TV",
+	["OfficePC"] = "Office Computer",
+	["Cup"] = "Cup plushie",
+	["Opey"] = "Open Painting",
+	["Op"] = "Open Booksheilf"
 }
 
 local ServerTab = Window:CreateTab({
@@ -245,11 +265,6 @@ local function CheckItem(Item, Parent, Depth)
 	local ClickDetector = Item:FindFirstChildOfClass("ClickDetector")
 	if not ClickDetector then return end
 
-	--// Filter hidden/disabled
-	if Item:IsA("BasePart") and Item.Transparency >= 1 then 
-		return 
-	end
-
 	--// No players
 	if Players:GetPlayerFromCharacter(Item) then return end
 	if Players:GetPlayerFromCharacter(Parent) then return end
@@ -280,6 +295,11 @@ local function CheckItem(Item, Parent, Depth)
 
     --// --Blacklist-- Whitelist check
 	if not table.find(ItemsWhitelist, Item.Name) then return end
+
+	--// Filter hidden/disabled
+	if Item:IsA("BasePart") and Item.Transparency >= 1 then 
+		return 
+	end
 
 	if not Matched then
 		CreateButtons({
@@ -387,7 +407,7 @@ CreateButtons({
 })
 
 local Toggles = ServerTab:CollapsingHeader({
-	Title = "Toggles 🛠️",
+	Title = "Interactive 🖱️",
 })
 
 local function AddSpam(Title, Delay, Callback)
@@ -403,7 +423,7 @@ local function AddSpam(Title, Delay, Callback)
 		Text = "Spam",
 		Callback = function(self)
 			SpamEnabled = not SpamEnabled
-			self.Text = SpamEnabled and "Stop spam" or "Spam"
+			self.Text = SpamEnabled and "Stop spam 🔴" or "Spam"
 
 			while SpamEnabled and wait(Delay) do
 				pcall(Callback)  --// Connections may cause an error
@@ -423,11 +443,6 @@ for Spam, Title in next, Spams do
 	end)
 end
 
-AddSpam("Open Painting", 1, function()
-	local Openy = workspace.Opey
-	FireItemClick(Openy)
-end)
-
 AddSpam("Open Room Doors", 0.5, function()
 	for _, Room: Model in next, Rooms:GetChildren() do
 		local Door = Room:FindFirstChild("Door")
@@ -441,14 +456,31 @@ AddSpam("Open Room Doors", 0.5, function()
 	end
 end)
 
-AddSpam("Open Basement", 0.3, function()
-	local Code = "9714"
+AddSpam("Open Front Doors", 0.5, function()
+	local MainDoor = workspace.MainDoor
 
-	for i = 1,#Code do --// gsub is not yeildable
-		local Button = GetItem(Code:sub(i,i))
-		FireItemClick(Button)
-		wait()
+	for _, Touch in next, MainDoor:GetDescendants() do 
+		if not Touch:IsA("TouchTransmitter") then continue end 
+
+		local Part = Touch.Parent 
+		FireTouchPart(Part)
 	end
+end)
+
+AddSpam("Open Office Door", 0.5, function()
+	local Office = workspace.Office
+	local Door = Office.Door
+	local Open = Door.Ok
+
+	FireTouchPart(Open)
+end)
+
+AddSpam("Open Basement", 0.2, function()
+	local Basement = workspace.Room 
+	local Door = Basement.Door 
+	local Open = Door.Main 
+
+	FireTouchPart(Open)
 end)
 
 AddSpam("Spam Basement Codes", 0.4, function()
