@@ -1,6 +1,8 @@
-local ImGui = loadstring(game:HttpGet('https://github.com/depthso/Roblox-ImGUI/raw/main/ImGui.lua'))()
+local ReGui = loadstring(game:HttpGet('https://raw.githubusercontent.com/depthso/Dear-ReGui/refs/heads/main/ReGui.lua'))()
+local PrefabsId = "rbxassetid://" .. ReGui.PrefabsId
 
 --// Services
+local InsertService = game:GetService("InsertService")
 local RunService = game:GetService("RunService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,12 +10,15 @@ local MaterialService = game:GetService("MaterialService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 
+local GameInfo = MarketplaceService:GetProductInfo(game.PlaceId)
 local LocalPlayer = Players.LocalPlayer
 local Rooms = workspace.Rooms
 
-local GameInfo = MarketplaceService:GetProductInfo(game.PlaceId)
+ReGui:Init({
+	Prefabs = InsertService:LoadLocalAsset(PrefabsId)
+})
 
-local Window = ImGui:CreateWindow({
+local Window = ReGui:TabsWindow({
 	Title = `{GameInfo.Name} | Depso`,
 	Size = UDim2.new(0, 350, 0, 370),
 	Position = UDim2.new(0.5, 0, 0, 70),
@@ -21,9 +26,8 @@ local Window = ImGui:CreateWindow({
 }):Center()
 
 local function Alert(Text: string)
-    local ModalWindow = ImGui:CreateModal({
-        Title = "Attention",
-        AutoSize = "Y"
+    local ModalWindow = Window:PopupModal({
+        Title = "Attention"
     })
 
     ModalWindow:Label({
@@ -41,6 +45,8 @@ local function Alert(Text: string)
 end
 
 local DiscoveredItems = {}
+local Doors = {}
+
 local ItemsWhitelist = {
     "Sandwich",
     "Cheese",
@@ -137,9 +143,10 @@ local ServerTab = Window:CreateTab({
 })
 
 --// Viewport frame
-local PreviewHeader = ServerTab:CollapsingHeader({
+local PreviewHeader = ServerTab:TreeNode({
 	Title = "Preview",
-}):SetOpen(true)
+	Collapsed = false
+})
 
 local Viewport = PreviewHeader:Viewport({
 	Size = UDim2.new(1, 0, 0, 120),
@@ -158,13 +165,13 @@ end)
 
 ServerTab:Separator()
 
-local ItemsHeader = ServerTab:CollapsingHeader({
+local ItemsHeader = ServerTab:TreeNode({
 	Title = "Tools 🧹",
 })
 
 --// Specific matches
 local Items = {
-	["^CD%d$"] = ItemsHeader:CollapsingHeader({
+	["^CD%d$"] = ItemsHeader:TreeNode({
 		Title = "CDs",
 	})
 }
@@ -275,7 +282,6 @@ local function CheckItem(Item, Parent, Depth)
             continue
         end
 
-        print("Discovered", NewName)
         Item.Name = NewName
     end
 
@@ -319,8 +325,18 @@ local function RecursiveScan(Parent, CallBack, MaxDepth, CurrentDepth)
 	end
 end
 
+local function ProcessDoors()
+	----// Doors
+	for _, Room: Model in next, Rooms:GetChildren() do
+		local Door = Room:FindFirstChild("Door")
+		if not Door then continue end
+		Doors[Door] = Door.Parent
+	end
+end
+
 --// Items give section, create buttons
 RecursiveScan(workspace, CheckItem, 4)
+ProcessDoors()
 
 local Broom = GetItem("Broom stick")
 CreateButtons({
@@ -406,7 +422,7 @@ CreateButtons({
 	end
 })
 
-local Toggles = ServerTab:CollapsingHeader({
+local Toggles = ServerTab:TreeNode({
 	Title = "Interactive 🖱️",
 })
 
@@ -497,7 +513,7 @@ function CloseCallback()
 	ViewportConnection:Disconnect()
 end
 
-local Destruction = ServerTab:CollapsingHeader({
+local Destruction = ServerTab:TreeNode({
 	Title = "Destruction 💥",
 })
 
@@ -554,7 +570,10 @@ local ClientTab = Window:CreateTab({
 })
 
 --// Teleports
-local Teleports = ClientTab:CollapsingHeader({
+local MapHeader = ClientTab:TreeNode({
+	Title = "Map 🗺️",
+})
+local Teleports = MapHeader:TreeNode({
 	Title = "Teleports 🛸",
 })
 
@@ -568,15 +587,7 @@ for Name, Pivot in next, Positions do
 	})
 end
 
-----// Doors
-local Doors = {}
-for _, Room: Model in next, Rooms:GetChildren() do
-	local Door = Room:FindFirstChild("Door")
-	if not Door then continue end
-	Doors[Door] = Door.Parent
-end
-
-ClientTab:Checkbox({
+MapHeader:Checkbox({
 	Label = "No doors",
 	Callback = function(self, Value)
 		for Door, Parent in next, Doors do
@@ -586,11 +597,10 @@ ClientTab:Checkbox({
 })
 
 --// Weather
-ClientTab:Separator({
-	Text = "Weather 🌧️"
+local WeatherHeader = ClientTab:TreeNode({
+	Title = "Weather 🌧️",
 })
-
-ClientTab:Checkbox({
+WeatherHeader:Checkbox({
 	Label = "No Rain",
 	Callback = function(self, Value)
 		LocalPlayer.PlayerScripts.Rai.RainyDay.Enabled = not Value
@@ -601,7 +611,7 @@ ClientTab:Checkbox({
 		end
 	end,
 })
-ClientTab:Button({
+WeatherHeader:Button({
 	Text = "Stop Rain",
 	Callback = function(self)
 		ReplicatedStorage.Season.Value = "Sunny"
@@ -618,15 +628,15 @@ ClientTab:Button({
 })
 
 --// Player
-ClientTab:Separator({
-	Text = "Player"
+local PlayerHeader = ClientTab:TreeNode({
+	Title = "Player",
 })
 
-ClientTab:Slider({
+PlayerHeader:SliderInt({
 	Label = "Walkspeed",
 	Value = 16,
-	MinValue = 1,
-	MaxValue = 100,
+	Minimum = 1,
+	Maximum = 100,
 
 	Callback = function(self, Value)
 		local Character = LocalPlayer.Character
